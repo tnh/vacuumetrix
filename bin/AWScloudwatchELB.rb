@@ -16,7 +16,8 @@ require 'optparse'
 
 options = {
     :start_offset => 180,
-    :end_offset => 120
+    :end_offset => 120,
+    :region => 'ap-southeast-2'
 }
 
 optparse = OptionParser.new do|opts|
@@ -29,6 +30,11 @@ optparse = OptionParser.new do|opts|
   opts.on( '-e', '--end-offset [OFFSET_SECONDS]', 'Time in seconds to offset from current time as the start of the metrics period. Default 120') do |e|
     options[:end_offset] = e
   end
+
+  opts.on( '-r', '--region [REGION_NAME]', 'Ie us-west-1 ap-southeast-2 and so on. Default ap-southeast-2') do |r|
+    options[:region] = r
+  end
+
 
   # This displays the help screen, all programs are
   # assumed to have this option.
@@ -69,7 +75,7 @@ metricNames = {"RequestCount" => "Sum",
 
 unit = 'Count'
 
-cloudwatch = Fog::AWS::CloudWatch.new(:aws_secret_access_key => $awssecretkey, :aws_access_key_id => $awsaccesskey, :region => $awsregion)
+cloudwatch = Fog::AWS::CloudWatch.new(:aws_secret_access_key => $awssecretkey, :aws_access_key_id => $awsaccesskey, :region => options[:region])
 
 lbs.each do |table|
   metricNames.each do |metricName, statistic|
@@ -88,7 +94,7 @@ lbs.each do |table|
                                                  }).body['GetMetricStatisticsResult']['Datapoints']
 
     responses.each do |response|
-      metricpath = "AWScloudwatch.ELB." + table + "." + metricName
+      metricpath = "aws."+ options[:region] +".cloudwatch.elb." + table + "." + metricName
       begin
         metricvalue = response[statistic]
         metrictimestamp = response["Timestamp"].to_i.to_s
@@ -128,7 +134,7 @@ lbs.each do |table|
                                                                      }]
                                                 }).body['GetMetricStatisticsResult']['Datapoints']
 
-    metricpath = "AWScloudwatch.ELB." + table + "." + metricName + "_" + statistic
+    metricpath = "aws."+ options[:region] +".cloudwatch.elb." + table + "." + metricName + "_" + statistic
     responses.each do |response|
       begin
         metricvalue = response[statistic]
@@ -137,7 +143,6 @@ lbs.each do |table|
         metricvalue = 0
         metrictimestamp = endTime.to_i.to_s
       end
-
       Sendit metricpath, metricvalue, metrictimestamp
     end
   end
